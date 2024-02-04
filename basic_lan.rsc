@@ -3,7 +3,7 @@
 
 :delay 60
 :log info "////\\\\                ////\\\\"
-:log info "\\\\////                \\\\////"
+:log info "\\\\////                \\\\////"1
 # Set timezone
 /system clock
 set time-zone-name=America/La_Paz
@@ -13,7 +13,7 @@ set time-zone-name=America/La_Paz
 # variables
 :local interfaceCount 0;
 :local wanInterfaces 1;
-:local networkAddress "192.168.10.";
+:local networkAddress "192.168.10.1/24";
 
 # Detect ethernet ports and craete a LAN Bridge, add all the ports after ether1 to the bridge.
 
@@ -24,7 +24,7 @@ set time-zone-name=America/La_Paz
     }
 }
 
-:log info "$interfaceCount Interfaces ethernet identificadas"
+:log info "$interfaceCount Ethernet interfaces identified"
 
 :if ($interfaceCount > 1) do={
     /interface bridge add name=bridgeLAN
@@ -35,25 +35,25 @@ set time-zone-name=America/La_Paz
         :set currentInterface ($currentInterface + 1)
     }
 } else={
-    :put "No hay suficientes interfaces para crear el puente."
+    :put "There are not enough interfaces to create the bridge."
 }
 
-:log info "Puertos agregados al Bridge"
+:log info "Ports added to the Bridge"
 
 :local waninterfaceCount 1;
 
 :while ($waninterfaceCount <= $wanInterfaces) do={
     /ip dhcp-client add comment=("WAN_" . $waninterfaceCount) dhcp-options=hostname,clientid disabled=no interface=("ether" . $waninterfaceCount)
     /interface ethernet set [ find default-name=("ether" . $waninterfaceCount) ] comment=("WAN_" . $waninterfaceCount)
-    :log info "WAN $waninterfaceCount agregado"
+    :log info "WAN $waninterfaceCount added"
     :set waninterfaceCount ($waninterfaceCount + 1)
 }
 
-:log info "DHCP Client para WAN agregado"
+:log info "DHCP Client for WAN added"
 
 # Add the IP Addresses
 /ip address
-add address=($networkAddress . "1/24") interface=bridgeLAN network=($networkAddress . "0")
+add address=($networkAddress) interface=bridgeLAN
 
 :log info "Direccionamiento IP agregado en bridgeLAN"
 
