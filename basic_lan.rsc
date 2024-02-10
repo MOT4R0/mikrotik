@@ -3,17 +3,35 @@
 
 :delay 60
 :log info "////\\\\                ////\\\\"
-:log info "\\\\////                \\\\////"1
+:log info "\\\\////                \\\\////"
 # Set timezone
 /system clock
 set time-zone-name=America/La_Paz
 
-:log info "Zona horaria establecida"
+:log info "Timezone established"
 
 # variables
 :local interfaceCount 0;
 :local wanInterfaces 1;
-:local networkAddress "192.168.10.1/24";
+:local networkAddress "192.168.10.";
+
+# Create interface list
+/interface list
+add name=WAN_list
+add name=LAN_list
+
+# Add interfaces to the lists
+
+/interface list member
+add interface=ether1 list=WAN_list
+add interface=ether2 list=WAN_list
+add interface=bridgeLAN list=LAN_list
+
+# Add firewall address list RFC1918
+/ip firewall address-list
+add address=10.0.0.0/8 list=RFC1918
+add address=172.16.0.0/12 list=RFC1918
+add address=192.168.0.0/16 list=RFC1918
 
 # Detect ethernet ports and craete a LAN Bridge, add all the ports after ether1 to the bridge.
 
@@ -42,7 +60,7 @@ set time-zone-name=America/La_Paz
 
 :local waninterfaceCount 1;
 
-:while ($waninterfaceCount <= $wanInterfaces) do={
+:while ($waninterfaceCount < $wanInterfaces) do={
     /ip dhcp-client add comment=("WAN_" . $waninterfaceCount) dhcp-options=hostname,clientid disabled=no interface=("ether" . $waninterfaceCount)
     /interface ethernet set [ find default-name=("ether" . $waninterfaceCount) ] comment=("WAN_" . $waninterfaceCount)
     :log info "WAN $waninterfaceCount added"
@@ -53,7 +71,7 @@ set time-zone-name=America/La_Paz
 
 # Add the IP Addresses
 /ip address
-add address=($networkAddress) interface=bridgeLAN
+add address=($networkAddress . "1/24") interface=bridgeLAN network=($networkAddress . "0")
 
 :log info "Direccionamiento IP agregado en bridgeLAN"
 
@@ -79,9 +97,18 @@ set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4
 
 # Add Internet NAT
 /ip firewall nat
-add action=masquerade chain=srcnat out-interface=ether1
+add action=masquerade chain=srcnat out-interface-list=WAN_list src-address-list=RFC1918
 
 :log info "Firewall NAT agregado"
+
+# Disable services
+/ip service
+set telnet disabled=yes
+set ftp disabled=yes
+set www disabled=yes
+set ssh disabled=yes
+set api disabled=yes
+set api-ssl disabled=yes
 
 :log info "////\\\\                ////\\\\"
 :log info "\\\\////                \\\\////"
