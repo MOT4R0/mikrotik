@@ -8,12 +8,30 @@
 /system clock
 set time-zone-name=America/La_Paz
 
-:log info "Zona horaria establecida"
+:log info "Timezone established"
 
 # variables
 :local interfaceCount 0;
 :local wanInterfaces 1;
 :local networkAddress "192.168.10.";
+
+# Create interface list
+/interface list
+add name=WAN_list
+add name=LAN_list
+
+# Add interfaces to the lists
+
+/interface list member
+add interface=ether1 list=WAN_list
+add interface=ether2 list=WAN_list
+add interface=bridgeLAN list=LAN_list
+
+# Add firewall address list RFC1918
+/ip firewall address-list
+add address=10.0.0.0/8 list=RFC1918
+add address=172.16.0.0/12 list=RFC1918
+add address=192.168.0.0/16 list=RFC1918
 
 # Detect ethernet ports and craete a LAN Bridge, add all the ports after ether1 to the bridge.
 
@@ -24,7 +42,7 @@ set time-zone-name=America/La_Paz
     }
 }
 
-:log info "$interfaceCount Interfaces ethernet identificadas"
+:log info "$interfaceCount Ethernet interfaces identified"
 
 :if ($interfaceCount > 1) do={
     /interface bridge add name=bridgeLAN
@@ -35,21 +53,21 @@ set time-zone-name=America/La_Paz
         :set currentInterface ($currentInterface + 1)
     }
 } else={
-    :put "No hay suficientes interfaces para crear el puente."
+    :put "There are not enough interfaces to create the bridge."
 }
 
-:log info "Puertos agregados al Bridge"
+:log info "Ports added to the Bridge"
 
 :local waninterfaceCount 1;
 
-:while ($waninterfaceCount <= $wanInterfaces) do={
+:while ($waninterfaceCount < $wanInterfaces) do={
     /ip dhcp-client add comment=("WAN_" . $waninterfaceCount) dhcp-options=hostname,clientid disabled=no interface=("ether" . $waninterfaceCount)
     /interface ethernet set [ find default-name=("ether" . $waninterfaceCount) ] comment=("WAN_" . $waninterfaceCount)
-    :log info "WAN $waninterfaceCount agregado"
+    :log info "WAN $waninterfaceCount added"
     :set waninterfaceCount ($waninterfaceCount + 1)
 }
 
-:log info "DHCP Client para WAN agregado"
+:log info "DHCP Client for WAN added"
 
 # Add the IP Addresses
 /ip address
@@ -79,9 +97,18 @@ set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4
 
 # Add Internet NAT
 /ip firewall nat
-add action=masquerade chain=srcnat out-interface=ether1
+add action=masquerade chain=srcnat out-interface-list=WAN_list src-address-list=RFC1918
 
 :log info "Firewall NAT agregado"
+
+# Disable services
+/ip service
+set telnet disabled=yes
+set ftp disabled=yes
+set www disabled=yes
+set ssh disabled=yes
+set api disabled=yes
+set api-ssl disabled=yes
 
 :log info "////\\\\                ////\\\\"
 :log info "\\\\////                \\\\////"
